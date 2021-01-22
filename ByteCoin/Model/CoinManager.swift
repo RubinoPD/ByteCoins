@@ -2,7 +2,22 @@
 
 import Foundation
 
+// By convention, Swift protocols are usually written in the file that has the class/struc which will call the delegate methods, i.e. the CoinManager.
+
+protocol CoinManagerDelegate {
+    
+    //Create the method stubs without implementation in the protocol.
+    //It's usually a good idea to also pass along a reference to the current class.
+    //e.g. func didUpdatePrice(_ coinManager: CoinManager, price: String, currency: String)
+    
+    func didUpdatePrice(price: String, currency: String)
+    func didFailWithError(error: Error)
+    
+}
+
 struct CoinManager {
+    
+    var delegate: CoinManagerDelegate?
     
     let baseURL = "https://rest.coinapi.io/v1/exchangerate/BTC"
     let apiKey = "9C4C396F-A800-426E-BC0E-20031EA64779"
@@ -22,12 +37,19 @@ struct CoinManager {
             // Create a new data task for the URLSession
             let task = session.dataTask(with: url) {(data, response, error) in
                 if error != nil {
-                print(error!)
+                    self.delegate?.didFailWithError(error: error!)
                 return
                 }
                 
                 if let safeData = data {
-                    let bitcoinPrice = self.parseJSON(safeData)
+                    if let bitcoinPrice = self.parseJSON(safeData) {
+                        // Round the price to 2 decimal places.
+                        let priceString = String(format: "%.2f", bitcoinPrice)
+                        
+                        // Call the delegate method in the delegate (ViewControler) and pass along the necessary data.
+                        self.delegate?.didUpdatePrice(price: priceString, currency: currency)
+                    }
+                    
                 }
             }
             
@@ -51,8 +73,8 @@ struct CoinManager {
             return lastPrice
         } catch {
             
-            // Catch any print errors
-            print(error)
+            // Catch any errors
+            delegate?.didFailWithError(error: error)
             return nil
         }
     }
